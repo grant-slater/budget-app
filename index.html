@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Budget</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Budget">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0f766e">
+<style>
+:root{--bg:#f4f6f5;--card:#fff;--ink:#14201e;--mute:#6b7a77;--line:#e3e9e7;--brand:#0f766e;--brand-ink:#fff;--bad:#c2410c;--good:#15803d;--chip:#e8efed}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1514;--card:#16211f;--ink:#e8f0ee;--mute:#8fa19d;--line:#24332f;--brand:#2dd4bf;--brand-ink:#04211d;--bad:#fb923c;--good:#4ade80;--chip:#1f2e2b}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
+header{padding:14px 16px 6px;display:flex;align-items:center;justify-content:space-between;max-width:720px;width:100%;margin:0 auto}
+header h1{font-size:20px;margin:0}
+#status{font-size:12px;color:var(--mute)}
+main{flex:1;overflow-y:auto;padding:8px 16px 24px;max-width:720px;width:100%;margin:0 auto}
+nav{display:flex;border-top:1px solid var(--line);background:var(--card);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;background:none;border:0;padding:12px 4px;font-size:12px;color:var(--mute);display:flex;flex-direction:column;align-items:center;gap:2px}
+nav button .i{font-size:20px}
+nav button.on{color:var(--brand);font-weight:600}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+label{display:block;font-size:12px;color:var(--mute);margin:12px 0 4px}
+input,select{width:100%;font:inherit;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+input.amt{font-size:34px;font-weight:700;text-align:center;padding:14px}
+.seg{display:flex;background:var(--chip);border-radius:10px;padding:3px;margin-bottom:8px}
+.seg button{flex:1;border:0;background:none;padding:9px;border-radius:8px;font:inherit;color:var(--mute)}
+.seg button.on{background:var(--card);color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{border:1px solid var(--line);background:var(--chip);color:var(--ink);padding:8px 12px;border-radius:999px;font:inherit;font-size:14px}
+.chips button.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand);font-weight:600}
+.btn{width:100%;border:0;border-radius:12px;padding:14px;font:inherit;font-weight:700;background:var(--brand);color:var(--brand-ink);margin-top:16px}
+.btn.ghost{background:none;color:var(--bad);border:1px solid var(--line);margin-top:8px;font-weight:600}
+.btn.sec{background:var(--chip);color:var(--ink)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.sum div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px}
+.sum small{display:block;color:var(--mute);font-size:11px}
+.sum b{font-size:17px}
+.bar{height:8px;background:var(--chip);border-radius:99px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--brand);border-radius:99px}
+.bar i.over{background:var(--bad)}
+.cat{padding:10px 0;border-bottom:1px solid var(--line)}
+.cat:last-child{border:0}
+.mute{color:var(--mute);font-size:13px}
+.neg{color:var(--bad)}.pos{color:var(--good)}
+.tx{padding:11px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.tx:last-child{border:0}
+.mnav{display:flex;align-items:center;justify-content:space-between;margin:4px 0 12px}
+.mnav button{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:16px;color:var(--ink)}
+.mnav b{font-size:17px}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:99px;font-size:14px;opacity:0;pointer-events:none;transition:.2s;max-width:90%;text-align:center}
+#toast.show{opacity:1}
+.err{color:var(--bad);font-size:13px;margin-top:8px}
+.brow{display:grid;grid-template-columns:1fr 100px 36px;gap:8px;margin-bottom:8px}
+.brow button{border:0;background:none;color:var(--bad);font-size:18px}
+.hide{display:none}
+</style>
+</head>
+<body>
+<header><h1>Budget</h1><span id="status"></span></header>
+<main id="main"></main>
+<nav id="nav">
+  <button data-t="add"><span class="i">＋</span>Add</button>
+  <button data-t="budget"><span class="i">◔</span>Budget</button>
+  <button data-t="activity"><span class="i">☰</span>Activity</button>
+  <button data-t="settings"><span class="i">⚙</span>Settings</button>
+</nav>
+<div id="toast"></div>
+
+<script>
+// ---------- storage helpers ----------
+const LS = {
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+};
+const cfg = { repo: LS.get('repo')||'', token: LS.get('token')||'' };
+const $ = s => document.querySelector(s);
+const esc = s => String(s??'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const money = n => (n<0?'-':'') + '$' + Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:2});
+const pad = n => String(n).padStart(2,'0');
+const todayStr = () => { const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const ymOf = s => s.slice(0,7);
+const monthName = ym => new Date(+ym.slice(0,4), +ym.slice(5,7)-1, 1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
+const shiftMonth = (ym,k) => { const d=new Date(+ym.slice(0,4), +ym.slice(5,7)-1+k, 1); return `${d.getFullYear()}-${pad(d.getMonth()+1)}`; };
+
+// ---------- state ----------
+const state = {
+  tab:'add', entries:[], budget:{categories:[],transfers:[]},
+  sha:{csv:null,budget:null}, month: todayStr().slice(0,7),
+  type:'expense', cat:'', editing:null, search:'', loading:false, error:''
+};
+try{
+  const c = JSON.parse(LS.get('cache')||'null');
+  if(c){ state.entries=c.entries||[]; state.budget=c.budget||state.budget; state.sha=c.sha||state.sha; }
+}catch(e){}
+const saveCache = () => LS.set('cache', JSON.stringify({entries:state.entries,budget:state.budget,sha:state.sha}));
+
+// ---------- csv ----------
+const COLS = ['id','date','type','amount','category','note'];
+function csvParse(text){
+  const rows=[]; let row=[],f='',q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){f+='"';i++;} else q=false; } else f+=c; }
+    else if(c==='"') q=true;
+    else if(c===','){ row.push(f); f=''; }
+    else if(c==='\n'){ row.push(f); rows.push(row); row=[]; f=''; }
+    else if(c!=='\r') f+=c;
+  }
+  if(f!==''||row.length){ row.push(f); rows.push(row); }
+  const head = rows.shift()||COLS;
+  return rows.filter(r=>r.length>1).map(r=>{ const o={}; head.forEach((h,i)=>o[h]=r[i]??''); o.amount=parseFloat(o.amount)||0; return o; });
+}
+const csvCell = v => { v=String(v??''); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+const csvStringify = list => [COLS.join(',')].concat(list.map(e=>COLS.map(c=>csvCell(e[c])).join(','))).join('\n')+'\n';
+
+// ---------- base64 ----------
+const b64enc = s => { const b=new TextEncoder().encode(s); let x=''; for(let i=0;i<b.length;i+=8192) x+=String.fromCharCode(...b.subarray(i,i+8192)); return btoa(x); };
+const b64dec = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\n/g,'')), c=>c.charCodeAt(0)));
+
+// ---------- GitHub ----------
+async function gh(path, opts={}){
+  const r = await fetch(`https://api.github.com/repos/${cfg.repo}/contents/${path}`, {
+    cache:'no-store', ...opts,
+    headers:{Accept:'application/vnd.github+json', Authorization:'Bearer '+cfg.token, 'Content-Type':'application/json'}
+  });
+  if(!r.ok){ const e=new Error('GitHub '+r.status); e.status=r.status; throw e; }
+  return r.status===204 ? null : r.json();
+}
+async function loadFile(path){ const j=await gh(path+'?t='+Date.now()); return {text:b64dec(j.content), sha:j.sha}; }
+async function putFile(path, text, sha, msg){
+  const body={message:msg, content:b64enc(text)}; if(sha) body.sha=sha;
+  const j = await gh(path,{method:'PUT',body:JSON.stringify(body)});
+  return j.content.sha;
+}
+
+const sortEntries = l => l.sort((a,b)=> a.date<b.date?-1:a.date>b.date?1:String(a.id).localeCompare(String(b.id)));
+
+async function loadAll(){
+  if(!cfg.repo||!cfg.token){ render(); return; }
+  state.loading=true; state.error=''; setStatus('Syncing…');
+  try{
+    const c = await loadFile('expenses.csv');
+    state.entries = csvParse(c.text); state.sha.csv = c.sha;
+    try{ const b = await loadFile('budget.json'); state.budget = JSON.parse(b.text); state.sha.budget=b.sha; }catch(e){ if(e.status!==404) throw e; }
+    await mergeInbox();
+    saveCache(); setStatus('Synced');
+  }catch(e){
+    state.error = e.status===401 ? 'Token rejected. Check Settings.' : e.status===404 ? 'Repo or expenses.csv not found. Check Settings.' : 'Could not sync ('+e.message+'). Showing saved copy.';
+    setStatus('Offline');
+  }
+  state.loading=false; render();
+}
+
+// Siri/Shortcut entries land as tiny files in inbox/. Fold them into expenses.csv.
+async function mergeInbox(){
+  let list; try{ list = await gh('inbox?t='+Date.now()); }catch(e){ if(e.status===404) return; throw e; }
+  list = list.filter(f=>f.name.endsWith('.json'));
+  if(!list.length) return;
+  const have = new Set(state.entries.map(e=>e.id)); const add=[];
+  for(const f of list){
+    try{
+      const j = JSON.parse((await loadFile('inbox/'+f.name)).text);
+      const id = f.name.replace('.json','');
+      if(!have.has(id)) add.push({id, date:j.date||todayStr(), type:j.type||'expense', amount:Math.abs(parseFloat(j.amount)||0), category:j.category||'Misc', note:j.note||''});
+    }catch(e){}
+  }
+  if(add.length){
+    const next = sortEntries(state.entries.concat(add));
+    state.sha.csv = await putFile('expenses.csv', csvStringify(next), state.sha.csv, `Add ${add.length} from inbox`);
+    state.entries = next;
+  }
+  for(const f of list){ try{ await gh('inbox/'+f.name,{method:'DELETE',body:JSON.stringify({message:'Clear inbox item',sha:f.sha})}); }catch(e){} }
+  if(add.length) toast(`${add.length} new from Siri`);
+}
+
+async function mutate(fn){
+  for(let i=0;i<2;i++){
+    try{
+      const next = sortEntries(fn(state.entries.map(e=>({...e}))));
+      state.sha.csv = await putFile('expenses.csv', csvStringify(next), state.sha.csv, 'Update expenses');
+      state.entries = next; saveCache(); return;
+    }catch(e){
+      if((e.status===409||e.status===422) && i===0){ const c=await loadFile('expenses.csv'); state.entries=csvParse(c.text); state.sha.csv=c.sha; continue; }
+      throw e;
+    }
+  }
+}
+
+// ---------- ui helpers ----------
+function setStatus(t){ $('#status').textContent=t; }
+let tt; function toast(t){ const el=$('#toast'); el.textContent=t; el.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>el.classList.remove('show'),2200); }
+function go(t){ state.tab=t; render(); $('#main').scrollTop=0; }
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{ if(b.dataset.t!=='add') state.editing=null; go(b.dataset.t); });
+
+const budgetCats = () => state.budget.categories.map(c=>c.name);
+const isTransfer = n => (state.budget.transfers||[]).includes(n);
+function allCats(type){
+  const seen = {}; state.entries.filter(e=>e.type===type).forEach(e=>seen[e.category]=(seen[e.category]||0)+1);
+  const top = Object.keys(seen).sort((a,b)=>seen[b]-seen[a]);
+  return type==='expense' ? [...new Set([...budgetCats(), ...top.filter(c=>seen[c]>=2)])] : top.slice(0,10);
+}
+
+// ---------- views ----------
+function render(){
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===state.tab));
+  const m=$('#main');
+  if(!cfg.repo||!cfg.token){ state.tab='settings'; document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==='settings')); }
+  m.innerHTML = ({add:viewAdd,budget:viewBudget,activity:viewActivity,settings:viewSettings})[state.tab]();
+  bind();
+}
+
+function viewAdd(){
+  const e = state.editing ? state.entries.find(x=>x.id===state.editing) : null;
+  const type = e ? e.type : state.type;
+  const cats = allCats(type==='income'?'income':'expense');
+  const cat = state.cat || (e?e.category:'');
+  const custom = cat && !cats.includes(cat);
+  return `
+  ${state.error?`<div class="err">${esc(state.error)}</div>`:''}
+  <div class="card">
+    <div class="seg" id="typeSeg">
+      <button data-v="expense" class="${type==='expense'?'on':''}">Expense</button>
+      <button data-v="income" class="${type==='income'?'on':''}">Income</button>
+      <button data-v="transfer" class="${type==='transfer'?'on':''}">Transfer</button>
+    </div>
+    <input class="amt" id="amt" inputmode="decimal" placeholder="$0.00" value="${e?e.amount:''}">
+    <label>Category</label>
+    <div class="chips" id="chips">
+      ${cats.map(c=>`<button data-c="${esc(c)}" class="${c===cat?'on':''}">${esc(c)}</button>`).join('')}
+      <button data-c="__other" class="${custom?'on':''}">Other…</button>
+    </div>
+    <input id="catOther" class="${custom?'':'hide'}" style="margin-top:8px" placeholder="Category name" value="${custom?esc(cat):''}">
+    <label>Store / note</label>
+    <input id="note" placeholder="Walmart" value="${e?esc(e.note):''}">
+    <label>Date</label>
+    <input id="date" type="date" value="${e?e.date:todayStr()}">
+    <button class="btn" id="saveBtn">${e?'Save changes':'Add'}</button>
+    ${e?'<button class="btn ghost" id="delBtn">Delete</button><button class="btn sec" id="cancelBtn">Cancel</button>':''}
+  </div>`;
+}
+
+function monthData(ym){
+  const list = state.entries.filter(e=>ymOf(e.date)===ym);
+  const inc = list.filter(e=>e.type==='income').reduce((s,e)=>s+e.amount,0);
+  const exp = list.filter(e=>e.type==='expense');
+  const spent = exp.reduce((s,e)=>s+e.amount,0);
+  const by = {}; exp.forEach(e=>by[e.category]=(by[e.category]||0)+e.amount);
+  return {inc,spent,by};
+}
+function viewBudget(){
+  const {inc,spent,by} = monthData(state.month);
+  const bc = state.budget.categories; const totalBudget = bc.reduce((s,c)=>s+c.budget,0);
+  const named = new Set(bc.map(c=>c.name));
+  const other = Object.keys(by).filter(k=>!named.has(k)).map(k=>[k,by[k]]).sort((a,b)=>b[1]-a[1]);
+  const otherTotal = other.reduce((s,x)=>s+x[1],0);
+  const row = (name,act,bud) => {
+    const pct = bud? Math.min(100,act/bud*100):0, over = bud && act>bud;
+    return `<div class="cat"><div class="row"><b>${esc(name)}</b><span>${money(act)}${bud?` <span class="mute">/ ${money(bud)}</span>`:''}</span></div>
+    ${bud?`<div class="bar"><i class="${over?'over':''}" style="width:${pct}%"></i></div><div class="mute ${over?'neg':''}">${over?money(act-bud)+' over':money(bud-act)+' left'}</div>`:''}</div>`;
+  };
+  return `
+  ${state.error?`<div class="err">${esc(state.error)}</div>`:''}
+  <div class="mnav"><button id="pm">‹</button><b>${monthName(state.month)}</b><button id="nm">›</button></div>
+  <div class="sum">
+    <div><small>Income</small><b class="pos">${money(inc)}</b></div>
+    <div><small>Spent</small><b>${money(spent)}</b></div>
+    <div><small>Net</small><b class="${inc-spent<0?'neg':'pos'}">${money(inc-spent)}</b></div>
+  </div>
+  <div class="card">
+    <div class="row"><b>Budget</b><span class="mute">${money(spent)} of ${money(totalBudget)}</span></div>
+    <div class="bar"><i class="${spent>totalBudget?'over':''}" style="width:${Math.min(100,spent/(totalBudget||1)*100)}%"></i></div>
+  </div>
+  <div class="card">
+    ${bc.map(c=>row(c.name,by[c.name]||0,c.budget)).join('')}
+    ${otherTotal?`<div class="cat"><div class="row"><b>Unbudgeted</b><span>${money(otherTotal)}</span></div><div class="mute">${other.map(([k,v])=>esc(k)+' '+money(v)).join(' · ')}</div></div>`:''}
+  </div>`;
+}
+
+function viewActivity(){
+  const q = state.search.toLowerCase();
+  let list = state.entries.filter(e=>!q || (e.category+' '+e.note).toLowerCase().includes(q)).slice().reverse().slice(0,150);
+  return `
+  <input id="search" placeholder="Search" value="${esc(state.search)}" style="margin-bottom:10px">
+  <div class="card">${list.length? list.map(e=>`
+    <div class="tx" data-id="${esc(e.id)}"><div class="row"><b>${esc(e.category)}</b>
+    <span class="${e.type==='income'?'pos':e.type==='expense'?'neg':'mute'}">${e.type==='income'?'+':e.type==='expense'?'-':''}${money(e.amount)}</span></div>
+    <div class="mute">${e.date}${e.note?' · '+esc(e.note):''}${e.type==='transfer'?' · transfer':''}</div></div>`).join('') : '<div class="mute">Nothing yet.</div>'}
+  </div><div class="mute" style="text-align:center">Showing latest 150. Tap one to edit.</div>`;
+}
+
+function viewSettings(){
+  return `
+  <div class="card">
+    <b>Connection</b>
+    <label>Data repo (owner/name)</label>
+    <input id="repo" placeholder="yourname/budget-data" value="${esc(cfg.repo)}" autocapitalize="off" autocorrect="off">
+    <label>Access token (stays on this device only)</label>
+    <input id="token" type="password" placeholder="github_pat_…" value="${esc(cfg.token)}" autocapitalize="off" autocorrect="off">
+    <button class="btn" id="saveCfg">Save and sync</button>
+    ${state.error?`<div class="err">${esc(state.error)}</div>`:''}
+  </div>
+  <div class="card">
+    <b>Monthly budgets</b>
+    <div id="brows" style="margin-top:10px">${state.budget.categories.map((c,i)=>`
+      <div class="brow"><input data-n="${i}" value="${esc(c.name)}"><input data-b="${i}" inputmode="decimal" value="${c.budget}"><button data-x="${i}">✕</button></div>`).join('')}</div>
+    <button class="btn sec" id="addCat">+ Add category</button>
+    <button class="btn" id="saveBud">Save budgets</button>
+  </div>
+  <div class="card"><button class="btn ghost" id="forget" style="margin:0">Sign out of this device</button></div>`;
+}
+
+// ---------- events ----------
+function bind(){
+  const on=(s,f)=>{ const el=$(s); if(el) el.onclick=f; };
+  document.querySelectorAll('#typeSeg button').forEach(b=>b.onclick=()=>{ state.type=b.dataset.v; state.cat=''; if(state.editing){ const e=state.entries.find(x=>x.id===state.editing); e.type=b.dataset.v; } render(); });
+  document.querySelectorAll('#chips button').forEach(b=>b.onclick=()=>{
+    state.cat = b.dataset.c==='__other' ? ($('#catOther').value||'__other') : b.dataset.c; keepForm(); render(); if(b.dataset.c==='__other') $('#catOther').focus();
+  });
+  on('#saveBtn', saveEntry);
+  on('#cancelBtn', ()=>{ state.editing=null; state.cat=''; render(); });
+  on('#delBtn', async ()=>{
+    if(!confirm('Delete this entry?')) return;
+    const id=state.editing;
+    try{ await mutate(l=>l.filter(e=>e.id!==id)); state.editing=null; state.cat=''; toast('Deleted'); go('activity'); }catch(e){ toast('Failed: '+e.message); }
+  });
+  on('#pm',()=>{state.month=shiftMonth(state.month,-1);render();});
+  on('#nm',()=>{state.month=shiftMonth(state.month,1);render();});
+  document.querySelectorAll('.tx').forEach(t=>t.onclick=()=>{ state.editing=t.dataset.id; state.cat=''; go('add'); });
+  const s=$('#search'); if(s) s.oninput=()=>{ state.search=s.value; const pos=s.selectionStart; render(); const n=$('#search'); n.focus(); n.setSelectionRange(pos,pos); };
+  on('#saveCfg', ()=>{ cfg.repo=$('#repo').value.trim().replace(/^https?:\/\/github.com\//,''); cfg.token=$('#token').value.trim(); LS.set('repo',cfg.repo); LS.set('token',cfg.token); state.tab='add'; loadAll(); });
+  on('#forget', ()=>{ if(!confirm('Remove token and saved data from this device?')) return; try{localStorage.clear();}catch(e){} location.reload(); });
+  on('#addCat', ()=>{ readBudgetRows(); state.budget.categories.push({name:'',budget:0}); render(); });
+  document.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{ readBudgetRows(); state.budget.categories.splice(+b.dataset.x,1); render(); });
+  on('#saveBud', async ()=>{
+    readBudgetRows(); state.budget.categories = state.budget.categories.filter(c=>c.name.trim());
+    try{ state.sha.budget = await putFile('budget.json', JSON.stringify(state.budget,null,2), state.sha.budget, 'Update budgets'); saveCache(); toast('Budgets saved'); render(); }
+    catch(e){ toast('Failed: '+e.message); }
+  });
+}
+function readBudgetRows(){
+  document.querySelectorAll('#brows .brow').forEach((r,i)=>{
+    const c=state.budget.categories[i]; if(!c) return;
+    c.name=r.querySelector('[data-n]').value.trim(); c.budget=parseFloat(r.querySelector('[data-b]').value)||0;
+  });
+}
+function keepForm(){ state._f={amt:$('#amt')?.value,note:$('#note')?.value,date:$('#date')?.value}; }
+function currentCat(){
+  const other=$('#catOther');
+  if(other && !other.classList.contains('hide') && other.value.trim()) return other.value.trim();
+  const on=document.querySelector('#chips button.on'); return on && on.dataset.c!=='__other' ? on.dataset.c : '';
+}
+async function saveEntry(){
+  const amount = Math.abs(parseFloat($('#amt').value.replace(/[$,]/g,'')));
+  const category = currentCat() || (state.cat && state.cat!=='__other' ? state.cat : '');
+  const date = $('#date').value || todayStr(); const note = $('#note').value.trim();
+  const type = state.editing ? state.entries.find(x=>x.id===state.editing).type : state.type;
+  if(!amount){ toast('Enter an amount'); return; }
+  if(!category){ toast('Pick a category'); return; }
+  const btn=$('#saveBtn'); btn.disabled=true; btn.textContent='Saving…';
+  try{
+    if(state.editing){ const id=state.editing; await mutate(l=>l.map(e=>e.id===id?{...e,date,type,amount,category,note}:e)); state.editing=null; toast('Saved'); }
+    else{ const id='e'+Date.now().toString(36); await mutate(l=>l.concat([{id,date,type,amount,category,note}])); toast('Added '+money(amount)+' · '+category); }
+    state.cat=''; state._f=null; setStatus('Synced'); render();
+  }catch(e){ toast('Failed: '+e.message); btn.disabled=false; btn.textContent='Add'; }
+}
+
+render();
+loadAll();
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden && cfg.token) loadAll(); });
+</script>
+</body>
+</html>
