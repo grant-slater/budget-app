@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Budget</title>
+<title>Horizon</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Budget">
+<meta name="apple-mobile-web-app-title" content="Horizon">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0f766e">
 <style>
@@ -64,7 +64,7 @@ input.amt{font-size:34px;font-weight:700;text-align:center;padding:14px}
 </style>
 </head>
 <body>
-<header><h1>Budget</h1><span id="status"></span></header>
+<header><h1>Horizon</h1><span id="status"></span></header>
 <main id="main"></main>
 <nav id="nav">
   <button data-t="add"><span class="i">＋</span>Add</button>
@@ -125,6 +125,29 @@ const csvStringify = list => [COLS.join(',')].concat(list.map(e=>COLS.map(c=>csv
 const b64enc = s => { const b=new TextEncoder().encode(s); let x=''; for(let i=0;i<b.length;i+=8192) x+=String.fromCharCode(...b.subarray(i,i+8192)); return btoa(x); };
 const b64dec = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\n/g,'')), c=>c.charCodeAt(0)));
 
+
+// Turn a spoken sentence ("add $17 misc expense from Walmart") into an entry.
+function parseSpoken(text){
+  let t = String(text||'').trim();
+  const m = t.match(/(\d[\d,]*(?:\.\d+)?)/);
+  const amount = m ? parseFloat(m[1].replace(/,/g,'')) : 0;
+  if(m) t = t.replace(m[0],' ');
+  t = t.replace(/\$/g,' ');
+  const low = () => t.toLowerCase();
+  let type = /\b(income|paycheck|deposit|refund)\b/i.test(t) ? 'income' : 'expense';
+  t = t.replace(/\b(income|paycheck|deposit|refund)\b/ig,' ');
+  let category = '';
+  const names = state.budget.categories.map(c=>c.name).concat(allCats('expense')).filter((v,i,a)=>v&&a.indexOf(v)===i).sort((a,b)=>b.length-a.length);
+  for(const n of names){
+    const re = new RegExp('\\b'+n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','i');
+    if(re.test(t)){ category=n; t=t.replace(re,' '); break; }
+  }
+  if(!category) category = type==='income' ? 'Income' : 'Misc';
+  t = t.replace(/\b(add|an?|the|expense|expenses|from|at|to|my|log|in|on|for|of|dollars?|bucks|spent|spend|cost|costs|paid|pay|category|and)\b/ig,' ').replace(/\s+/g,' ').trim();
+  const note = t.replace(/\b\w/g,c=>c.toUpperCase());
+  return {amount, type, category, note};
+}
+
 // ---------- GitHub ----------
 async function gh(path, opts={}){
   const r = await fetch(`https://api.github.com/repos/${cfg.repo}/contents/${path}`, {
@@ -162,15 +185,20 @@ async function loadAll(){
 // Siri/Shortcut entries land as tiny files in inbox/. Fold them into expenses.csv.
 async function mergeInbox(){
   let list; try{ list = await gh('inbox?t='+Date.now()); }catch(e){ if(e.status===404) return; throw e; }
-  list = list.filter(f=>f.name.endsWith('.json'));
+  list = list.filter(f=>/\.(json|txt)$/.test(f.name));
   if(!list.length) return;
   const have = new Set(state.entries.map(e=>e.id)); const add=[];
   for(const f of list){
     try{
-      const j = JSON.parse((await loadFile('inbox/'+f.name)).text);
-      const id = f.name.replace('.json','');
-      if(!have.has(id)) add.push({id, date:j.date||todayStr(), type:j.type||'expense', amount:Math.abs(parseFloat(j.amount)||0), category:j.category||'Misc', note:j.note||''});
-    }catch(e){}
+      const raw = (await loadFile('inbox/'+f.name)).text;
+      const id = f.name.replace(/\.(json|txt)$/,'');
+      const st = id.match(/^(\d{4})(\d{2})(\d{2})/);
+      const fdate = st ? `${st[1]}-${st[2]}-${st[3]}` : todayStr();
+      let e;
+      if(f.name.endsWith('.json')){ const j=JSON.parse(raw); e={date:j.date||fdate,type:j.type||'expense',amount:Math.abs(parseFloat(j.amount)||0),category:j.category||'Misc',note:j.note||''}; }
+      else { const p=parseSpoken(raw); e={date:fdate,type:p.type,amount:p.amount,category:p.category,note:p.note||raw.trim().slice(0,60)}; }
+      if(!have.has(id) && e.amount) add.push({id,...e});
+    }catch(err){}
   }
   if(add.length){
     const next = sortEntries(state.entries.concat(add));
