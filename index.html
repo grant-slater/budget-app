@@ -426,7 +426,7 @@ function viewHome(){
     ${s.actualDate?`<div class="mute" style="margin-top:4px">Last checked ${fmtDate(s.actualDate)}</div>`:''}</div>`;
   const today=todayStr(),soon=fc.items.filter(it=>dayNum(it.eff)-dayNum(today)<=14).slice(0,6);
   const cm=todayStr().slice(0,7);const md=monthData(cm);
-  const bt=budgetTotal(),dayOf=+todayStr().slice(8),dim=daysInMonth(cm),pace=dayOf>0?md.spent/dayOf*dim:0;
+  const bt=budgetTotal(),dayOf=+todayStr().slice(8),dim=daysInMonth(cm),rest=fc.items.filter(it=>it.type==='expense'&&!isExcluded(it.category)&&ymOf(it.eff)===cm).reduce((a,it)=>a+it.amount,0),proj=md.spent+rest;
   const top=Object.keys(md.by).sort((a,b)=>md.by[b]-md.by[a]).slice(0,5);
   const bmap={};state.budget.categories.forEach(c=>bmap[c.name]=c.budget);
   const months=[];for(let k=5;k>=0;k--)months.push(shiftMonth(cm,-k));
@@ -453,7 +453,7 @@ function viewHome(){
     <h2>${monthName(cm)}</h2>
     <div class="row"><span class="big" style="font-size:28px">${money(Math.round(md.spent))}</span><span class="sub">spent of ${money(bt)} budgeted</span></div>
     <div class="bar"><i class="${md.spent>bt?'over':''}" style="width:${Math.min(100,md.spent/(bt||1)*100)}%"></i></div>
-    <div class="sub" style="margin-top:6px">Day ${dayOf} of ${dim}. On pace for ${money(Math.round(pace))}${pace>bt?`, <span class="neg">${money(Math.round(pace-bt))} over</span>`:`, ${money(Math.round(bt-pace))} under`}. Income so far ${money(Math.round(md.inc))}.</div>
+    <div class="sub" style="margin-top:6px">Day ${dayOf} of ${dim}. With ${money(Math.round(rest))} still planned this month, you'd finish at ${money(Math.round(proj))}${proj>bt?`, <span class="neg">${money(Math.round(proj-bt))} over budget</span>`:`, ${money(Math.round(bt-proj))} under budget`}. Income so far ${money(Math.round(md.inc))}.</div>
     <div style="margin-top:10px">${top.map(c=>{const b=bmap[c];const pct=b?Math.min(100,md.by[c]/b*100):0;return `<div class="cat"><div class="row"><span>${esc(c)}</span><span>${money(Math.round(md.by[c]))}${b?` <span class="mute">/ ${money(b)}</span>`:' <span class="mute">unbudgeted</span>'}</span></div>${b?`<div class="bar"><i class="${md.by[c]>b?'over':''}" style="width:${pct}%"></i></div>`:''}</div>`}).join('')||'<div class="mute">No spending yet this month.</div>'}</div>
   </section>
   <section>
@@ -564,7 +564,7 @@ function openEntry(id){
     };
     if($('#del'))$('#del').onclick=async()=>{if(!confirm('Delete this entry?'))return;try{await mutate(l=>l.filter(x=>x.id!==e.id));closeSheet();toast('Deleted');render()}catch(err){toast('Failed: '+err.message)}};
   };
-  window.__keep=null;draw();
+  window.__keep=null;draw();if(!e)$('#amt').focus();
 }
 function openPlanned(id,presetDate){
   const orig=id?state.planned.find(x=>x.id===id):null;
